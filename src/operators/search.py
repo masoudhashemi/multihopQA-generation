@@ -71,3 +71,60 @@ def simulate_search(query: str, target_type: InfoType) -> Optional[State]:
     else:
         print(f"  -> Found: Nothing")
         return None
+
+
+def simulate_search_relationship(
+    query_entity1: Any,
+    query_entity2: Any,
+    target_type: InfoType = InfoType.RELATIONSHIP_DESCRIPTION,
+) -> Optional[State]:
+    """Simulates searching for a relationship between two entities."""
+    print(f"  Simulating RELATIONSHIP SEARCH between: '{query_entity1}' and '{query_entity2}' (expecting {target_type.name})")
+    value = None
+    info_type = target_type
+
+    # Basic simulation based on types and specific examples
+    if isinstance(query_entity1, str) and isinstance(query_entity2, str):
+        e1 = query_entity1.lower()
+        e2 = query_entity2.lower()
+        if ("marie curie" in e1 and "pierre curie" in e2) or ("marie curie" in e2 and "pierre curie" in e1):
+            value = "Spouses"
+        elif ("albert einstein" in e1 and "theory of relativity" in e2) or ("albert einstein" in e2 and "theory of relativity" in e1):
+            value = "Developed"
+        else:
+            value = f"Simulated relationship between '{query_entity1}' and '{query_entity2}'"
+            info_type = InfoType.TEXT_SNIPPET # Fallback type
+    else:
+         value = f"Simulated generic relationship between provided entities."
+         info_type = InfoType.TEXT_SNIPPET # Fallback type
+
+    print(f"  -> Found: {value} (as type {info_type.name})")
+    return State(value, info_type)
+
+def simulate_contextual_search(
+    query_context: Any,
+    query_location: Any,
+    target_type: InfoType = InfoType.EVENT_DESCRIPTION,
+) -> Optional[State]:
+    """Simulates searching for events related to a context in a specific location."""
+    print(f"  Simulating CONTEXTUAL SEARCH for: '{query_context}' in '{query_location}' (expecting {target_type.name})")
+    value = None
+    info_type = target_type
+
+    # Basic simulation
+    if isinstance(query_context, str) and isinstance(query_location, str):
+        ctx = query_context.lower()
+        loc = query_location.lower()
+        if "world expo" in ctx and "paris" in loc:
+            value = "The 1889 Exposition Universelle, for which the Eiffel Tower was built."
+        elif "olympics" in ctx and "beijing" in loc:
+            value = "The 2008 Summer Olympics."
+        else:
+            value = f"Simulated event involving '{query_context}' in '{query_location}'"
+            info_type = InfoType.TEXT_SNIPPET # Fallback type
+    else:
+        value = f"Simulated generic event based on provided context and location."
+        info_type = InfoType.TEXT_SNIPPET # Fallback type
+
+    print(f"  -> Found: {value} (as type {info_type.name})")
+    return State(value, info_type)

@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..core import InfoType, OperatorType, Rule, State
 from ..operators import simulate_calculate, simulate_code, simulate_search
+from ..operators.search import simulate_search_relationship, simulate_contextual_search
 from ..operators.table_ops import simulate_aggregate_table, simulate_filter_table, simulate_table_lookup
 from ..operators.text_ops import simulate_extract_info
 from ..utils import format_question
@@ -237,6 +238,8 @@ class QuestionGenerator:
                     operation = "greater_than"
                 elif "earlier than" in desc:
                     operation = "earlier_than"
+                elif "are equal" in desc or "is equal to" in desc:
+                    operation = "are_equal"
                 # List/Table Operations
                 elif "sum of the primary numerical list" in desc:
                     operation = "list_sum"
@@ -300,6 +303,24 @@ result = filtered_list
 
             elif rule.operator == OperatorType.EXTRACT_INFO:
                 new_state = simulate_extract_info(rule.description_template, input_values, rule.output_type)
+
+            elif rule.operator == OperatorType.SEARCH_RELATIONSHIP:
+                if len(input_values) == 2:
+                    new_state = simulate_search_relationship(
+                        input_values[0], input_values[1], rule.output_type
+                    )
+                else:
+                    print(f"  -> Error: SEARCH_RELATIONSHIP requires exactly 2 inputs, got {len(input_values)}.")
+                    new_state = None
+
+            elif rule.operator == OperatorType.SEARCH_CONTEXTUAL:
+                if len(input_values) == 2:
+                    new_state = simulate_contextual_search(
+                        input_values[0], input_values[1], rule.output_type
+                    )
+                else:
+                    print(f"  -> Error: SEARCH_CONTEXTUAL requires exactly 2 inputs, got {len(input_values)}.")
+                    new_state = None
 
             # --- Add other operators here if needed ---
             # else:

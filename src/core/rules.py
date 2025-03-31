@@ -140,6 +140,13 @@ RULES_DB: List[Rule] = [
         1,
         "Determine if date {input0} is earlier than date {input1}",
     ),
+    Rule( # Added for equality check
+        OperatorType.CALCULATE,
+        (InfoType.TEXT_SNIPPET, InfoType.TEXT_SNIPPET), # Example: Compare two extracted names
+        InfoType.BOOLEAN,
+        1,
+        "Determine if {input0} and {input1} are equal.",
+    ),
     # List/Table Aggregations (Using TABLE_DATA as input proxy for list)
     # These rules were ill-defined; use AGGREGATE_TABLE operator instead.
     # Rule(
@@ -230,4 +237,19 @@ RULES_DB: List[Rule] = [
     ),
     # Add more specific extraction rules as needed
     # Rule(OperatorType.EXTRACT_INFO, (InfoType.TEXT_SNIPPET,), InfoType.LOCATION_NAME, 3, "From the text {input0}, extract the first location."),
+    # --- New Multi-Input Search Rules ---
+    Rule(
+        OperatorType.SEARCH_RELATIONSHIP,
+        (InfoType.PERSON_NAME, InfoType.PERSON_NAME),
+        InfoType.RELATIONSHIP_DESCRIPTION,
+        3, # Higher complexity due to reasoning
+        "What is the relationship between {input0} and {input1}?",
+    ),
+    Rule(
+        OperatorType.SEARCH_CONTEXTUAL,
+        (InfoType.CONCEPT, InfoType.LOCATION_NAME),
+        InfoType.EVENT_DESCRIPTION,
+        3,
+        "Find events related to {input0} that occurred in {input1}",
+    ),
 ]

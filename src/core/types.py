@@ -23,6 +23,8 @@ class InfoType(Enum):
     DURATION = auto()  # Represents a time duration, e.g., in years
     CURRENCY_VALUE = auto()
     BOOLEAN = auto()
+    RELATIONSHIP_DESCRIPTION = auto() # Added for relationship search results
+    EVENT_DESCRIPTION = auto()      # Added for contextual search results
     OTHER = auto()  # Generic fallback type
 
 
@@ -36,6 +38,8 @@ class OperatorType(Enum):
     EXTRACT_INFO = auto()  # Simulate extracting specific info from text
     FILTER_TABLE = auto()  # Simulate filtering rows from a table
     AGGREGATE_TABLE = auto()  # Simulate calculating aggregates (sum, avg) over table columns
+    SEARCH_RELATIONSHIP = auto() # Added for searching relationship between entities
+    SEARCH_CONTEXTUAL = auto()   # Added for searching based on context + location
 
 
 class State:

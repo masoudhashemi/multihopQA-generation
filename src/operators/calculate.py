@@ -91,6 +91,9 @@ def simulate_calculate(operation: str, args: List[Any], expected_output_type: In
         ):
             value = arg_values[0] < arg_values[1]
             info_type = InfoType.BOOLEAN
+        elif operation == "are_equal" and len(arg_values) == 2:
+            value = arg_values[0] == arg_values[1]
+            info_type = InfoType.BOOLEAN
 
         # --- List/Table Operations --- (Removed: Use AGGREGATE_TABLE operator)
         # elif operation in ["list_sum", "list_avg", "list_max", "list_count"] and len(arg_values) == 1:
