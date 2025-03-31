@@ -3,7 +3,6 @@ from typing import List, Optional, Tuple
 
 # Import for dotenv support
 from dotenv import load_dotenv
-
 from openai import OpenAI
 
 from ..core import Rule, State
@@ -20,7 +19,14 @@ class LLMQuestionGenerator:
     Utilizes OpenRouter's API to access various LLM models.
     """
 
-    def __init__(self, base_generator: QuestionGenerator, api_key: Optional[str] = None, site_url: Optional[str] = None, site_name: Optional[str] = None, model: Optional[str] = None):
+    def __init__(
+        self,
+        base_generator: QuestionGenerator,
+        api_key: Optional[str] = None,
+        site_url: Optional[str] = None,
+        site_name: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
         """
         Initialize the LLM Question Generator.
 
@@ -34,13 +40,15 @@ class LLMQuestionGenerator:
         self.base_generator = base_generator
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
-            raise ValueError("OpenRouter API key is required. Provide it as parameter or set OPENROUTER_API_KEY environment variable.")
-        
+            raise ValueError(
+                "OpenRouter API key is required. Provide it as parameter or set OPENROUTER_API_KEY environment variable."
+            )
+
         # Use environment variables as fallbacks for optional parameters
         self.site_url = site_url or os.getenv("SITE_URL")
         self.site_name = site_name or os.getenv("SITE_NAME")
         self.model = model or os.getenv("LLM_MODEL", "openai/gpt-4o")
-        
+
         # Initialize OpenAI client with OpenRouter base URL
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -61,7 +69,7 @@ class LLMQuestionGenerator:
         """
         # Format the trajectory into a structured question using the existing formatter
         formatted_question = format_question(seed_state, applied_rules, configuration)
-        
+
         # Prepare the prompt for the LLM
         prompt = f"""
 You are an expert at creating complex, multi-step questions for a question-answering system.
@@ -88,14 +96,7 @@ than separate numbered steps.
 
         # Generate the question using the LLM
         completion = self.client.chat.completions.create(
-            extra_headers=extra_headers,
-            model=self.model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+            extra_headers=extra_headers, model=self.model, messages=[{"role": "user", "content": prompt}]
         )
 
         # Return the generated question
@@ -115,19 +116,19 @@ than separate numbered steps.
         # Use the base generator to create a trajectory
         print(f"Generating trajectory with {kwargs}")
         trajectory_result = self.base_generator.generate(seed_state, **kwargs)
-        
+
         # Check if trajectory generation was successful
         if trajectory_result is None:
             print("Base generator failed to create a trajectory.")
             return None
-            
+
         # Extract components from trajectory result
         # The base generators typically return (formatted_question, applied_rules, configuration)
         _, applied_rules, configuration = trajectory_result
-        
+
         # Verify the right number of hops was generated
-        if 'max_hops' in kwargs and len(applied_rules) != kwargs['max_hops']:
+        if "max_hops" in kwargs and len(applied_rules) != kwargs["max_hops"]:
             print(f"Warning: Expected {kwargs['max_hops']} hops but got {len(applied_rules)}. Continuing anyway.")
-            
+
         # Generate the question using the LLM
-        return self.generate_from_trajectory(seed_state, applied_rules, configuration) 
+        return self.generate_from_trajectory(seed_state, applied_rules, configuration)

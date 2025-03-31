@@ -13,8 +13,9 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
         self, seed_state: State, max_hops: int, max_complexity: int
     ) -> Optional[Tuple[str, List[Rule], List[State]]]:
         """
-        Generates using forward chaining, selecting randomly from applicable rules 
-        that haven't been used yet and stay within the complexity budget.
+        Generates using forward chaining with constraints and diversity promotion.
+        Selects rules staying within complexity budget, not yet used, and
+        favors diversity using weighted random choice.
 
         Args:
             seed_state: The initial State.
@@ -24,7 +25,9 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
         Returns:
             A tuple (formatted_question, applied_rules, configuration) or None.
         """
-        print(f"\n--- Generating: Constrained Random Walk (Max Hops: {max_hops}, Max Complexity: {max_complexity}) ---")
+        print(
+            f"\n--- Generating: Constrained Random Walk (Diversity, Max Hops: {max_hops}, Max Complexity: {max_complexity}) ---"
+        )
         print(f"Seed: {seed_state}")
         configuration: List[State] = [seed_state]
         applied_rules: List[Rule] = []
@@ -40,7 +43,7 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
             for rule, inputs in all_applicable_options:
                 if current_complexity + rule.complexity <= max_complexity:
                     constrained_options.append((rule, inputs))
-            
+
             # Filter out rules already applied in this sequence from the constrained options
             applied_rule_ids = {id(rule) for rule in applied_rules}
             unique_constrained_options = [
@@ -59,9 +62,18 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
                     print("No *unique* applicable rules found within complexity budget. Stopping generation.")
                 break
 
-            # Strategy: Randomly select from the *unique*, *constrained* set of applicable rules
-            chosen_rule, input_states_for_rule = random.choice(unique_constrained_options)
-            print(f"Selected Rule: {chosen_rule} (Cost: {chosen_rule.complexity})")
+            # --- Strategy: Use base class method for weighted selection on unique, constrained options ---
+            selection_result = self._select_rule_with_diversity(
+                unique_constrained_options, configuration, applied_rules
+            )
+
+            if not selection_result:
+                print("Weighted selection failed (no options returned). Stopping generation.")
+                break
+
+            chosen_rule, input_states_for_rule = selection_result
+            # --- End of weighted selection ---
+            print(f"Selected Rule (via Diversity): {chosen_rule} (Cost: {chosen_rule.complexity})")
 
             # Execute the rule
             new_state = self._execute_rule(chosen_rule, input_states_for_rule)
@@ -87,7 +99,9 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
             return None
 
         question_text = format_question(seed_state, applied_rules, configuration)
-        print(f"\n--- Generated Question (Constrained Random Walk - Total Complexity: {current_complexity}) ---")
+        print(
+            f"\n--- Generated Question (Constrained Random Walk - Diversity - Total Complexity: {current_complexity}) ---"
+        )
         print(question_text)
-        print("-----------------------------------------------------------------------------------")
+        print("--------------------------------------------------------------------------------------------------")
         return question_text, applied_rules, configuration

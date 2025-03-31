@@ -34,6 +34,8 @@ class OperatorType(Enum):
     RUN_CODE = auto()  # Simulate running a code snippet
     TABLE_LOOKUP = auto()  # Simulate looking up data in a table
     EXTRACT_INFO = auto()  # Simulate extracting specific info from text
+    FILTER_TABLE = auto()  # Simulate filtering rows from a table
+    AGGREGATE_TABLE = auto()  # Simulate calculating aggregates (sum, avg) over table columns
 
 
 class State:

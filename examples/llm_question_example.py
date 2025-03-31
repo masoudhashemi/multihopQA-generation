@@ -6,6 +6,7 @@ sys.path.append("..")  # Add the parent directory to the path to import from src
 
 # Import dotenv for environment variables
 from dotenv import load_dotenv
+
 from src.core import RULES_DB, InfoType, Rule, State
 from src.generators import (
     BackwardChainingGenerator,

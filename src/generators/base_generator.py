@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..core import InfoType, OperatorType, Rule, State
 from ..operators import simulate_calculate, simulate_code, simulate_search
+from ..operators.table_ops import simulate_aggregate_table, simulate_filter_table, simulate_table_lookup
+from ..operators.text_ops import simulate_extract_info
 from ..utils import format_question
 
 
@@ -65,6 +67,89 @@ class QuestionGenerator:
 
         return applicable_options
 
+    def _select_rule_with_diversity(
+        self,
+        candidate_options: List[Tuple[Rule, List[State]]],
+        configuration: List[State],
+        applied_rules: List[Rule],
+        goal_scores: Optional[Dict[int, float]] = None,  # Added optional goal scores (key: id(rule))
+    ) -> Optional[Tuple[Rule, List[State]]]:
+        """
+        Selects a rule from candidate options using weighted random choice favoring diversity.
+        Optionally combines diversity score with provided goal scores.
+
+        Args:
+            candidate_options: List of (Rule, input_states) tuples to choose from.
+            configuration: The current list of states generated so far.
+            applied_rules: The list of rules applied so far.
+            goal_scores: Optional dictionary mapping rule ID to its goal relevance score.
+
+        Returns:
+            A tuple (chosen_rule, input_states_for_rule) or None if no options available.
+        """
+        if not candidate_options:
+            return None
+
+        combined_scores = []
+        config_indices = {id(state): i for i, state in enumerate(configuration)}
+        last_operator = applied_rules[-1].operator if applied_rules else None
+        max_possible_age = len(configuration) - 1
+
+        print(f"  Calculating combined scores (Diversity * Goal) for {len(candidate_options)} options...")
+        for rule, input_states in candidate_options:
+            diversity_score = 1.0  # Baseline positive score
+
+            # 1. Operator Novelty Bonus
+            op_novelty_bonus = 0.0
+            if last_operator and rule.operator != last_operator:
+                op_novelty_bonus = 1.0  # Bonus for different operator
+                diversity_score += op_novelty_bonus
+
+            # 2. Input Recency Bonus (using older states is better)
+            input_recency_bonus = 0.0
+            if input_states:
+                total_age = 0
+                num_valid_states = 0
+                for state in input_states:
+                    state_index = config_indices.get(id(state), -1)
+                    if state_index != -1:
+                        age = max_possible_age - state_index
+                        total_age += age
+                        num_valid_states += 1
+                if num_valid_states > 0:
+                    avg_age = total_age / num_valid_states
+                    if max_possible_age > 0:
+                        input_recency_bonus = 0.5 * (avg_age / max_possible_age)
+                    else:
+                        input_recency_bonus = 0  # Avoid division by zero at hop 1
+                    diversity_score += input_recency_bonus
+
+            # Get goal score if provided
+            current_goal_score = 1.0
+            if goal_scores is not None:
+                current_goal_score = goal_scores.get(id(rule), 0.0)  # Default to 0 if rule not in goal_scores
+
+            # Combine scores (multiplication ensures both need to be good)
+            final_score = diversity_score * current_goal_score
+
+            print(
+                f"    - Rule '{rule.description_template[:30]}...': Score={final_score:.2f} (Div={diversity_score:.2f}, Goal={current_goal_score:.2f})"
+            )
+            combined_scores.append(final_score)
+
+        # Ensure scores are positive for random.choices
+        positive_scores = [max(s, 0.01) for s in combined_scores]  # Use a small floor
+
+        # Check if all scores became zero (or near zero floor)
+        if sum(positive_scores) <= len(positive_scores) * 0.01:  # Check if effectively all scores are at the floor
+            print("  Warning: All candidate rules have near-zero combined scores. Cannot select.")
+            return None
+
+        # Select using weighted random choice based on combined scores
+        chosen_rule, input_states_for_rule = random.choices(candidate_options, weights=positive_scores, k=1)[0]
+        print(f"  Selected Rule (Weighted by Diversity*Goal): {chosen_rule}")
+        return chosen_rule, input_states_for_rule
+
     def _execute_rule(self, rule: Rule, input_states: List[State]) -> Optional[State]:
         """
         Executes the simulation function corresponding to the rule's operator.
@@ -125,14 +210,50 @@ class QuestionGenerator:
                 # Infer operation from description (needs robust mapping)
                 operation = "unknown"
                 desc = rule.description_template.lower()
-                if "duration" in desc and "between" in desc:
-                    operation = "difference_years"
-                elif "sum" in desc:
+                # Simple Arithmetic
+                if "sum of" in desc:
                     operation = "sum"
+                elif "difference between" in desc and "absolute" not in desc:
+                    operation = "subtract"
+                elif "product of" in desc:
+                    operation = "multiply"
                 elif "dividing" in desc:
                     operation = "divide"
-                # ... add more operation mappings ...
-                new_state = simulate_calculate(operation, input_values)  # Pass raw values
+                elif "absolute difference" in desc:
+                    operation = "abs_difference"
+                elif "percentage" in desc:
+                    operation = "percentage"
+                # Date/Time
+                elif "duration in years between" in desc:
+                    operation = "difference_years"
+                elif "number of days between" in desc:
+                    operation = "difference_days"
+                elif "days after" in desc:
+                    operation = "date_plus_days"
+                elif "extract the year" in desc:
+                    operation = "extract_year"
+                # Comparison
+                elif "greater than" in desc:
+                    operation = "greater_than"
+                elif "earlier than" in desc:
+                    operation = "earlier_than"
+                # List/Table Operations
+                elif "sum of the primary numerical list" in desc:
+                    operation = "list_sum"
+                elif "average of the primary numerical list" in desc:
+                    operation = "list_avg"
+                elif "maximum value in the primary numerical list" in desc:
+                    operation = "list_max"
+                elif "count the number of items" in desc:
+                    operation = "list_count"
+
+                # Check if operation was identified
+                if operation == "unknown":
+                    print(
+                        f"  -> Warning: Could not determine calculation operation from description: '{rule.description_template}'"
+                    )
+                else:
+                    new_state = simulate_calculate(operation, input_values, rule.output_type)  # Pass output type too
 
             elif rule.operator == OperatorType.RUN_CODE:
                 # This requires defining the code and input mapping within the rule or here
@@ -166,9 +287,23 @@ result = filtered_list
                 else:
                     print(f"  -> Specific RUN_CODE simulation logic not implemented for: {rule.description_template}")
 
-            # --- Add other operators: TABLE_LOOKUP, EXTRACT_INFO ---
-            # elif rule.operator == OperatorType.TABLE_LOOKUP: ...
-            # elif rule.operator == OperatorType.EXTRACT_INFO: ...
+            # --- NEW: Table and Text Operators ---
+            elif rule.operator == OperatorType.TABLE_LOOKUP:
+                new_state = simulate_table_lookup(input_values, rule.output_type)
+
+            elif rule.operator == OperatorType.FILTER_TABLE:
+                new_state = simulate_filter_table(input_values, rule.output_type)
+
+            elif rule.operator == OperatorType.AGGREGATE_TABLE:
+                # The aggregation function name is now the second input value
+                new_state = simulate_aggregate_table(input_values, rule.output_type)
+
+            elif rule.operator == OperatorType.EXTRACT_INFO:
+                new_state = simulate_extract_info(rule.description_template, input_values, rule.output_type)
+
+            # --- Add other operators here if needed ---
+            # else:
+            #    print(f"Warning: No execution logic defined for operator {rule.operator.name}")
 
             # Store provenance information in the new state if created
             if new_state:

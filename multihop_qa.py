@@ -70,10 +70,10 @@ def main():
         # Initialize LLM generator with the forward chaining generator
         # Environment variables will be used automatically
         llm_generator = LLMQuestionGenerator(forward_generator)
-        
+
         # Generate a question using the LLM
         llm_question = llm_generator.generate(seed_einstein, max_hops=3)
-        
+
         if llm_question:
             print("\nLLM-generated question:")
             print(llm_question)

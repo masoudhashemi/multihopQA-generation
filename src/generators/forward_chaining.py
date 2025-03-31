@@ -11,8 +11,9 @@ class ForwardChainingGenerator(QuestionGenerator):
 
     def generate(self, seed_state: State, max_hops: int) -> Optional[Tuple[str, List[Rule], List[State]]]:
         """
-        Generates a question using simple forward chaining.
-        At each step, randomly selects one applicable rule that hasn't been used yet.
+        Generates a question using simple forward chaining with diversity promotion.
+        At each step, selects an applicable rule using weighted random choice
+        that favors operator novelty and using older input states.
 
         Args:
             seed_state: The initial State to start generation from.
@@ -22,7 +23,7 @@ class ForwardChainingGenerator(QuestionGenerator):
             A tuple containing (formatted_question, list_of_applied_rules, final_configuration)
             or None if generation fails.
         """
-        print(f"\n--- Generating: Forward Chaining (Max Hops: {max_hops}) ---")
+        print(f"\n--- Generating: Forward Chaining (Diversity Promoted, Max Hops: {max_hops}) ---")
         print(f"Seed: {seed_state}")
         configuration: List[State] = [seed_state]
         applied_rules: List[Rule] = []
@@ -34,7 +35,7 @@ class ForwardChainingGenerator(QuestionGenerator):
 
             # Filter out rules already applied in this sequence
             applied_rule_ids = {id(rule) for rule in applied_rules}
-            unique_applicable_options = [
+            unique_applicable_options: List[Tuple[Rule, List[State]]] = [
                 (rule, inputs) for rule, inputs in applicable_options if id(rule) not in applied_rule_ids
             ]
 
@@ -45,9 +46,15 @@ class ForwardChainingGenerator(QuestionGenerator):
                     print("No *unique* applicable rules found. Stopping generation.")
                 break
 
-            # Strategy: Randomly select one applicable rule from the unique options
-            chosen_rule, input_states_for_rule = random.choice(unique_applicable_options)
-            print(f"Selected Rule: {chosen_rule}")
+            # --- Strategy: Use base class method for weighted selection ---
+            selection_result = self._select_rule_with_diversity(unique_applicable_options, configuration, applied_rules)
+
+            if not selection_result:
+                print("Weighted selection failed (no options returned). Stopping generation.")
+                break
+
+            chosen_rule, input_states_for_rule = selection_result
+            # --- End of weighted selection ---
 
             # Execute the chosen rule
             new_state = self._execute_rule(chosen_rule, input_states_for_rule)
@@ -76,7 +83,7 @@ class ForwardChainingGenerator(QuestionGenerator):
             return None
 
         question_text = format_question(seed_state, applied_rules, configuration)
-        print("\n--- Generated Question (Forward Chaining) ---")
+        print("\n--- Generated Question (Forward Chaining - Diversity Promoted) ---")
         print(question_text)
-        print("---------------------------------------------")
+        print("-------------------------------------------------------------------")
         return question_text, applied_rules, configuration

@@ -1,0 +1,58 @@
+[
+    {
+        "Name": "Mercury",
+        "Type": "Terrestrial",
+        "Diameter (km)": 4879,
+        "Moons": 0,
+        "Orbit Distance (AU)": 0.39
+    },
+    {
+        "Name": "Venus",
+        "Type": "Terrestrial",
+        "Diameter (km)": 12104,
+        "Moons": 0,
+        "Orbit Distance (AU)": 0.72
+    },
+    {
+        "Name": "Earth",
+        "Type": "Terrestrial",
+        "Diameter (km)": 12756,
+        "Moons": 1,
+        "Orbit Distance (AU)": 1.00
+    },
+    {
+        "Name": "Mars",
+        "Type": "Terrestrial",
+        "Diameter (km)": 6792,
+        "Moons": 2,
+        "Orbit Distance (AU)": 1.52
+    },
+    {
+        "Name": "Jupiter",
+        "Type": "Gas Giant",
+        "Diameter (km)": 142984,
+        "Moons": 95,
+        "Orbit Distance (AU)": 5.20
+    },
+    {
+        "Name": "Saturn",
+        "Type": "Gas Giant",
+        "Diameter (km)": 120536,
+        "Moons": 146,
+        "Orbit Distance (AU)": 9.58
+    },
+    {
+        "Name": "Uranus",
+        "Type": "Ice Giant",
+        "Diameter (km)": 51118,
+        "Moons": 27,
+        "Orbit Distance (AU)": 19.22
+    },
+    {
+        "Name": "Neptune",
+        "Type": "Ice Giant",
+        "Diameter (km)": 49528,
+        "Moons": 14,
+        "Orbit Distance (AU)": 30.05
+    }
+] 

@@ -59,7 +59,7 @@ RULES_DB: List[Rule] = [
     Rule(
         OperatorType.CALCULATE,
         (InfoType.DATE, InfoType.DATE),
-        InfoType.DURATION,
+        InfoType.DURATION,  # Or NUMERICAL_VALUE if duration is just years
         2,
         "Calculate the time duration in years between {input0} and {input1}",
     ),
@@ -77,6 +77,99 @@ RULES_DB: List[Rule] = [
         1,
         "Calculate the result of dividing {input0} by {input1}",
     ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.NUMERICAL_VALUE, InfoType.NUMERICAL_VALUE),
+        InfoType.NUMERICAL_VALUE,
+        1,
+        "Calculate the difference between {input0} and {input1}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.NUMERICAL_VALUE, InfoType.NUMERICAL_VALUE),
+        InfoType.NUMERICAL_VALUE,
+        1,
+        "Calculate the product of {input0} and {input1}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.NUMERICAL_VALUE, InfoType.NUMERICAL_VALUE),
+        InfoType.NUMERICAL_VALUE,
+        1,
+        "Calculate the absolute difference between {input0} and {input1}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.DATE, InfoType.DATE),
+        InfoType.NUMERICAL_VALUE,
+        2,
+        "Calculate the number of days between {input0} and {input1}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.DATE, InfoType.NUMERICAL_VALUE),
+        InfoType.DATE,
+        2,
+        "Calculate the date that is {input1} days after {input0}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.DATE,),
+        InfoType.NUMERICAL_VALUE,
+        1,
+        "Extract the year from the date {input0}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.NUMERICAL_VALUE, InfoType.NUMERICAL_VALUE),
+        InfoType.NUMERICAL_VALUE,
+        2,
+        "Calculate what percentage {input0} is of {input1}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.NUMERICAL_VALUE, InfoType.NUMERICAL_VALUE),
+        InfoType.BOOLEAN,
+        1,
+        "Determine if {input0} is greater than {input1}",
+    ),
+    Rule(
+        OperatorType.CALCULATE,
+        (InfoType.DATE, InfoType.DATE),
+        InfoType.BOOLEAN,
+        1,
+        "Determine if date {input0} is earlier than date {input1}",
+    ),
+    # List/Table Aggregations (Using TABLE_DATA as input proxy for list)
+    # These rules were ill-defined; use AGGREGATE_TABLE operator instead.
+    # Rule(
+    #     OperatorType.CALCULATE,
+    #     (InfoType.TABLE_DATA,),
+    #     InfoType.NUMERICAL_VALUE,
+    #     2,
+    #     "Calculate the sum of the primary numerical list in {input0}",
+    # ),
+    # Rule(
+    #     OperatorType.CALCULATE,
+    #     (InfoType.TABLE_DATA,),
+    #     InfoType.NUMERICAL_VALUE,
+    #     2,
+    #     "Calculate the average of the primary numerical list in {input0}",
+    # ),
+    # Rule(
+    #     OperatorType.CALCULATE,
+    #     (InfoType.TABLE_DATA,),
+    #     InfoType.NUMERICAL_VALUE,
+    #     2,
+    #     "Find the maximum value in the primary numerical list in {input0}",
+    # ),
+    # Rule(
+    #     OperatorType.CALCULATE,
+    #     (InfoType.TABLE_DATA,),
+    #     InfoType.NUMERICAL_VALUE,
+    #     1,
+    #     "Count the number of items in the primary list/table {input0}",
+    # ),
     # Code Rules (Example - requires specific input handling in _execute_rule)
     Rule(
         OperatorType.RUN_CODE,
@@ -92,4 +185,49 @@ RULES_DB: List[Rule] = [
         3,
         "Using code, filter the list {input0} based on criteria X",
     ),  # Criteria X needs definition
+    # --- Table and Text Operations ---
+    # Table Lookup (Example: Find population of a specific city in a table of cities)
+    Rule(
+        OperatorType.TABLE_LOOKUP,
+        # Input: Table, Key Column Name, Key Value, Target Column Name
+        (InfoType.TABLE_DATA, InfoType.TEXT_SNIPPET, InfoType.TEXT_SNIPPET, InfoType.TEXT_SNIPPET),
+        InfoType.NUMERICAL_VALUE,  # Output type depends on the column
+        2,
+        "In table {input0}, find the value in column '{input3}' for the row where column '{input1}' matches '{input2}'.",
+    ),
+    # Table Filtering (Example: Filter planets table to show only gas giants)
+    Rule(
+        OperatorType.FILTER_TABLE,
+        # Input: Table, Column Name, Comparison Type (str), Value to Compare
+        (InfoType.TABLE_DATA, InfoType.TEXT_SNIPPET, InfoType.TEXT_SNIPPET, InfoType.TEXT_SNIPPET),
+        InfoType.TABLE_DATA,
+        3,
+        "Filter table {input0} to include only rows where column '{input1}' {input2} '{input3}'.",
+    ),
+    # Table Aggregation (Example: Sum a 'Sales' column in a table)
+    Rule(
+        OperatorType.AGGREGATE_TABLE,
+        # Input: Table, Aggregation Function (str), Column Name to Aggregate
+        (InfoType.TABLE_DATA, InfoType.TEXT_SNIPPET, InfoType.TEXT_SNIPPET),
+        InfoType.NUMERICAL_VALUE,
+        2,
+        "Calculate the {input1} of values in column '{input2}' of table {input0}.",
+    ),
+    # Text Extraction (Example: Extract birth date from a biography snippet)
+    Rule(
+        OperatorType.EXTRACT_INFO,
+        (InfoType.TEXT_SNIPPET,),  # Input: Text Only
+        InfoType.TEXT_SNIPPET,  # Output is generally text, might need conversion later
+        3,  # Extraction can be complex
+        "From the text {input0}, extract the first entity of type 'Person'.",  # Specify entity in description
+    ),
+    Rule(
+        OperatorType.EXTRACT_INFO,
+        (InfoType.TEXT_SNIPPET,),  # Input: Text Only
+        InfoType.DATE,
+        3,
+        "From the text {input0}, extract the first date mentioned.",
+    ),
+    # Add more specific extraction rules as needed
+    # Rule(OperatorType.EXTRACT_INFO, (InfoType.TEXT_SNIPPET,), InfoType.LOCATION_NAME, 3, "From the text {input0}, extract the first location."),
 ]
