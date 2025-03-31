@@ -35,8 +35,8 @@ class GoalOrientedGenerator(QuestionGenerator):
     ) -> Optional[Tuple[str, List[Rule], List[State]]]:
         """
         Generates using forward chaining, prioritizing rules leading towards a target type.
-        Uses weighted random selection based on rule scores.
-        Stops if target type is reached or max_hops exceeded.
+        Uses weighted random selection based on rule scores from rules not yet applied.
+        Continues until exactly max_hops are generated or no more unique rules can be applied.
         """
         print(f"\n--- Generating: Goal-Oriented Walk (Target: {target_type.name}, Max Hops: {max_hops}) ---")
         print(f"Seed: {seed_state}")
@@ -51,22 +51,44 @@ class GoalOrientedGenerator(QuestionGenerator):
             if not applicable_options:
                 print("No applicable rules found. Stopping generation.")
                 break
-
-            # Score applicable rules based on the goal
-            scored_options = []
-            scores = []
-            for rule, inputs in applicable_options:
-                score = self._score_rule_for_goal(rule, target_type)
-                if score > 0:  # Only consider rules with non-zero score
-                    scored_options.append((rule, inputs))
-                    scores.append(score)
-                # print(f"  Rule: {rule.operator.name} -> {rule.output_type.name}, Score: {score:.2f}") # Debug
-
-            if not scored_options:
-                print("No applicable rules found contributing to the goal. Stopping generation.")
+            
+            # Filter out rules already applied in this sequence
+            applied_rule_ids = {id(rule) for rule in applied_rules}
+            unique_applicable_options = [
+                (rule, inputs) for rule, inputs in applicable_options if id(rule) not in applied_rule_ids
+            ]
+            
+            if not unique_applicable_options:
+                print("No *unique* applicable rules found. Stopping generation.")
                 break
 
-            # Strategy: Weighted random choice based on scores
+            # Score applicable rules based on the goal
+            # Only consider rules from the unique applicable set
+            scored_options = []
+            scores = []
+            
+            # If target is already reached, use any unique applicable rule instead of goal-focused ones
+            if target_reached:
+                scored_options = unique_applicable_options
+                scores = [1.0] * len(unique_applicable_options)  # Equal weights for all unique rules
+                print("Target already reached. Selecting any unique applicable rule to complete requested hops.")
+            else:
+                # Use goal-oriented scoring for unique rules
+                for rule, inputs in unique_applicable_options:
+                    score = self._score_rule_for_goal(rule, target_type)
+                    if score > 0:  # Only consider rules with non-zero score
+                        scored_options.append((rule, inputs))
+                        scores.append(score)
+
+            if not scored_options:
+                if target_reached:
+                    # This shouldn't happen if unique_applicable_options was non-empty
+                    print("Error: No scored options after target reached, despite unique rules being available.")
+                else:
+                    print("No applicable rules found contributing to the goal. Stopping generation.")
+                break
+
+            # Strategy: Weighted random choice based on scores from the unique, scored set
             chosen_rule, input_states_for_rule = random.choices(scored_options, weights=scores, k=1)[0]
             print(
                 f"Selected Rule (Weighted Choice): {chosen_rule} (Score: {scores[scored_options.index((chosen_rule, input_states_for_rule))]:.2f})"
@@ -82,11 +104,10 @@ class GoalOrientedGenerator(QuestionGenerator):
                     configuration.append(new_state)
                     applied_rules.append(chosen_rule)
 
-                    # Check if target type was reached
-                    if new_state.info_type == target_type:
-                        print(f"Target type {target_type.name} reached at hop {hop + 1}.")
+                    # Check if target type was reached, but don't stop generation
+                    if new_state.info_type == target_type and not target_reached:
+                        print(f"Target type {target_type.name} reached at hop {hop + 1}, continuing to complete requested {max_hops} hops.")
                         target_reached = True
-                        break  # Stop generation once target is reached
                 else:
                     print(
                         f"Warning: Rule produced type {new_state.info_type.name}, expected {chosen_rule.output_type.name}. Stopping branch."
@@ -104,6 +125,7 @@ class GoalOrientedGenerator(QuestionGenerator):
         question_text = format_question(seed_state, applied_rules, configuration)
         status = "Target Reached" if target_reached else "Max Hops Reached"
         print(f"\n--- Generated Question (Goal-Oriented Walk - Status: {status}) ---")
+        print(f"Generated question with exact {len(applied_rules)}/{max_hops} hops.")
         print(question_text)
         print("----------------------------------------------------------------")
         return question_text, applied_rules, configuration

@@ -13,8 +13,8 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
         self, seed_state: State, max_hops: int, max_complexity: int
     ) -> Optional[Tuple[str, List[Rule], List[State]]]:
         """
-        Generates using forward chaining, but filters applicable rules at each step
-        to stay within the maximum total complexity budget.
+        Generates using forward chaining, selecting randomly from applicable rules 
+        that haven't been used yet and stay within the complexity budget.
 
         Args:
             seed_state: The initial State.
@@ -40,19 +40,27 @@ class ConstrainedRandomWalkGenerator(QuestionGenerator):
             for rule, inputs in all_applicable_options:
                 if current_complexity + rule.complexity <= max_complexity:
                     constrained_options.append((rule, inputs))
+            
+            # Filter out rules already applied in this sequence from the constrained options
+            applied_rule_ids = {id(rule) for rule in applied_rules}
+            unique_constrained_options = [
+                (rule, inputs) for rule, inputs in constrained_options if id(rule) not in applied_rule_ids
+            ]
 
-            if not constrained_options:
+            if not unique_constrained_options:
                 if not all_applicable_options:
                     print("No applicable rules found. Stopping generation.")
-                else:
+                elif not constrained_options:
                     print(
                         f"No applicable rules found within complexity budget "
                         f"({max_complexity - current_complexity} remaining). Stopping."
                     )
+                else:
+                    print("No *unique* applicable rules found within complexity budget. Stopping generation.")
                 break
 
-            # Strategy: Randomly select from the *constrained* set of applicable rules
-            chosen_rule, input_states_for_rule = random.choice(constrained_options)
+            # Strategy: Randomly select from the *unique*, *constrained* set of applicable rules
+            chosen_rule, input_states_for_rule = random.choice(unique_constrained_options)
             print(f"Selected Rule: {chosen_rule} (Cost: {chosen_rule.complexity})")
 
             # Execute the rule

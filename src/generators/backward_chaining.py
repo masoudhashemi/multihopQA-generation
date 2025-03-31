@@ -38,19 +38,48 @@ class BackwardChainingGenerator(QuestionGenerator):
         }
         return seed_values.get(info_type)
 
-    def _find_backward_plan(self, current_target_type: InfoType, depth_remaining: int) -> Optional[List[Rule]]:
-        """Recursive helper to find a sequence of rules leading to the target type. Returns plan in EXECUTION order."""
-        # print(f"Entering _find_backward_plan for {current_target_type.name} with depth {depth_remaining}")
+    def _find_backward_plan(self, current_target_type: InfoType, depth_remaining: int, parent_rule_operator: Optional[OperatorType] = None) -> Optional[List[Rule]]:
+        """
+        Recursive helper to find a sequence of rules leading to the target type.
+        Returns plan in EXECUTION order.
+        Tries to avoid repeating the same operator type as the parent rule.
+        """
+        # print(f"Entering _find_backward_plan for {current_target_type.name} with depth {depth_remaining}, parent={parent_rule_operator}")
+        
+        # We want to use exactly depth_remaining steps if possible
+        if depth_remaining == 0:
+            # We should be at a seedable type now
+            if self._is_seedable_type(current_target_type):
+                # print(f"  -> Base case reached: Seedable type {current_target_type.name}")
+                return []  # Reached a seed, plan segment for this branch is empty (success)
+            else:
+                # print(f"  -> No rules produce non-seedable type {current_target_type.name}")
+                return None  # Need exact depth, so return None if we can't seed this type
+        
         if depth_remaining < 0:
             # print(f"  -> Depth limit exceeded for {current_target_type.name}")
             return None
 
         # Find rules that produce the current_target_type
         producer_rules = self._find_rules_producing(current_target_type)
+        
+        # Filter out rules with the same operator type as the parent, if applicable
+        if parent_rule_operator is not None:
+            filtered_producer_rules = [
+                rule for rule in producer_rules if rule.operator != parent_rule_operator
+            ]
+            # Fallback: If filtering removed all options, use the original list
+            if filtered_producer_rules:
+                producer_rules = filtered_producer_rules
+            else:
+                print(f"  Warning: Could not avoid repeating operator {parent_rule_operator} to produce {current_target_type.name}. All producers are {parent_rule_operator}.")
 
         # If no rules produce this type, check if it's a seedable base case
         if not producer_rules:
             if self._is_seedable_type(current_target_type):
+                # Base case reached, but we still need to use more steps - can't meet exact depth requirement
+                if depth_remaining > 0:
+                    return None
                 # print(f"  -> Base case reached: Seedable type {current_target_type.name}")
                 return []  # Reached a seed, plan segment for this branch is empty (success)
             else:
@@ -70,8 +99,8 @@ class BackwardChainingGenerator(QuestionGenerator):
                 all_plans_successful = True
 
                 for input_type in rule.input_types:
-                    # Recursively find a plan for this input
-                    input_plan = self._find_backward_plan(input_type, depth_remaining - 1)
+                    # Recursively find a plan for this input, passing the current rule's operator
+                    input_plan = self._find_backward_plan(input_type, depth_remaining - 1, parent_rule_operator=rule.operator)
 
                     # If we couldn't find a plan for this input, this rule won't work
                     if input_plan is None:
@@ -103,7 +132,10 @@ class BackwardChainingGenerator(QuestionGenerator):
                     return combined_plan
 
             else:  # If rule has no inputs (unusual, but possible)
-                return [rule]  # Just return this rule as the plan
+                if depth_remaining == 1:  # Perfect match for our depth requirement
+                    return [rule]  # Just return this rule as the plan
+                else:
+                    return None  # Can't satisfy depth requirement
 
         # If no rule led to a successful plan for this target type
         # print(f"  -> No successful plan found for {current_target_type.name} via any producer rule.")
@@ -113,6 +145,7 @@ class BackwardChainingGenerator(QuestionGenerator):
         """
         Attempts to generate a question by planning backward from the target type.
         Finds a sequence of rules, identifies a seed type/value, then executes forward.
+        Always tries to create exactly max_hops steps.
         NOTE: This implementation is simplified, especially regarding multi-input rules.
         """
         print(f"\n--- Generating: Backward Chaining (Target: {target_type.name}, Max Hops: {max_hops}) ---")
@@ -120,18 +153,23 @@ class BackwardChainingGenerator(QuestionGenerator):
         # 1. Find a potential plan (sequence of rules) backward from the target
         # Plan is returned in execution order (Seed Rule -> ... -> Target Rule)
         print("Finding backward plan...")
-        plan = self._find_backward_plan(target_type, max_hops - 1)
+        plan = self._find_backward_plan(target_type, max_hops)
 
         if plan is None:
-            print("Failed to find a backward plan to a seedable type within max hops.")
+            print(f"Failed to find a backward plan with exactly {max_hops} hops to a seedable type.")
             return None
 
         if not plan:  # Plan is [] means target is seedable, requiring 0 hops.
             print(f"Target type {target_type.name} is directly seedable. Cannot generate multi-hop question.")
             return None
+            
+        # Verify we've created the correct number of hops
+        if len(plan) != max_hops:
+            print(f"Warning: Failed to create plan with exactly {max_hops} hops. Got {len(plan)} hops instead.")
+            return None
 
         # Plan is already in execution order
-        print(f"Found Backward Plan (Execution Order):")
+        print(f"Found Backward Plan (Execution Order) with exactly {len(plan)} hops:")
         for i, rule in enumerate(plan):
             print(
                 f"  Step {i+1}: {rule.operator.name} - Inputs: {[t.name for t in rule.input_types]} -> Output: {rule.output_type.name}"

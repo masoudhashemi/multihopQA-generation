@@ -12,7 +12,7 @@ class ForwardChainingGenerator(QuestionGenerator):
     def generate(self, seed_state: State, max_hops: int) -> Optional[Tuple[str, List[Rule], List[State]]]:
         """
         Generates a question using simple forward chaining.
-        At each step, randomly selects one applicable rule.
+        At each step, randomly selects one applicable rule that hasn't been used yet.
 
         Args:
             seed_state: The initial State to start generation from.
@@ -31,12 +31,22 @@ class ForwardChainingGenerator(QuestionGenerator):
             print(f"\n-- Hop {hop + 1} --")
             # Find rules applicable to the current configuration
             applicable_options = self._find_applicable_rules(configuration)
-            if not applicable_options:
-                print("No applicable rules found. Stopping generation.")
+
+            # Filter out rules already applied in this sequence
+            applied_rule_ids = {id(rule) for rule in applied_rules}
+            unique_applicable_options = [
+                (rule, inputs) for rule, inputs in applicable_options if id(rule) not in applied_rule_ids
+            ]
+
+            if not unique_applicable_options:
+                if not applicable_options:
+                    print("No applicable rules found. Stopping generation.")
+                else:
+                    print("No *unique* applicable rules found. Stopping generation.")
                 break
 
-            # Strategy: Randomly select one applicable rule
-            chosen_rule, input_states_for_rule = random.choice(applicable_options)
+            # Strategy: Randomly select one applicable rule from the unique options
+            chosen_rule, input_states_for_rule = random.choice(unique_applicable_options)
             print(f"Selected Rule: {chosen_rule}")
 
             # Execute the chosen rule

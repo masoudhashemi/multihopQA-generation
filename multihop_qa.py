@@ -1,4 +1,8 @@
+import os
 import sys
+
+# Import dotenv for environment variables
+from dotenv import load_dotenv
 
 from src.core import RULES_DB, InfoType, State
 from src.generators import (
@@ -6,8 +10,12 @@ from src.generators import (
     ConstrainedRandomWalkGenerator,
     ForwardChainingGenerator,
     GoalOrientedGenerator,
+    LLMQuestionGenerator,
     TemplateBasedGenerator,
 )
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def main():
@@ -54,6 +62,27 @@ def main():
     # Example 5: Backward Chaining
     print("\n\n" + "=" * 20 + " EXAMPLE 5: Backward Chaining (Target: CITY_NAME) " + "=" * 20)
     backward_generator.generate(target_type=InfoType.CITY_NAME, max_hops=4)
+
+    # Example 6: LLM Question Generator (if OPENROUTER_API_KEY is set)
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if api_key:
+        print("\n\n" + "=" * 20 + " EXAMPLE 6: LLM Question Generation " + "=" * 20)
+        # Initialize LLM generator with the forward chaining generator
+        # Environment variables will be used automatically
+        llm_generator = LLMQuestionGenerator(forward_generator)
+        
+        # Generate a question using the LLM
+        llm_question = llm_generator.generate(seed_einstein, max_hops=3)
+        
+        if llm_question:
+            print("\nLLM-generated question:")
+            print(llm_question)
+        else:
+            print("Failed to generate LLM question.")
+    else:
+        print("\n\n" + "=" * 20 + " EXAMPLE 6: LLM Question Generation (Skipped) " + "=" * 20)
+        print("Set OPENROUTER_API_KEY environment variable to use the LLM Question Generator.")
+        print("You can create a .env file in the project root with your API key.")
 
 
 if __name__ == "__main__":
